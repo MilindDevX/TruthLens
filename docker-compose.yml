@@ -1,0 +1,88 @@
+# ─── TruthLens Docker Compose ───
+# Full-stack: PostgreSQL + Backend (gunicorn) + Frontend (Nginx)
+# Optional: pgAdmin for dev database management
+
+services:
+  # ─── PostgreSQL Database ───
+  postgres:
+    image: postgres:16-alpine
+    container_name: truthlens-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-truthlens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-truthlens_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-truthlens}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-truthlens}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ─── Backend API (FastAPI + Gunicorn) ───
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: truthlens-api
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-truthlens}:${POSTGRES_PASSWORD:-truthlens_secret}@postgres:5432/${POSTGRES_DB:-truthlens}"
+      DATABASE_URL_SYNC: "postgresql+psycopg2://${POSTGRES_USER:-truthlens}:${POSTGRES_PASSWORD:-truthlens_secret}@postgres:5432/${POSTGRES_DB:-truthlens}"
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - models_data:/app/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ─── Frontend (Nginx + React SPA) ───
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: "/api/v1"
+    container_name: truthlens-web
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # ─── pgAdmin (dev only) ───
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: truthlens-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@truthlens.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_LISTEN_PORT: 5050
+    ports:
+      - "5050:5050"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - dev
+
+volumes:
+  postgres_data:
+    driver: local
+  models_data:
+    driver: local
