@@ -1,0 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base Layer ─── */
+@layer base {
+  body {
+    @apply bg-surface-primary text-slate-100 font-sans antialiased;
+    min-height: 100vh;
+  }
+
+  #root {
+    @apply min-h-screen flex flex-col;
+  }
+
+  a {
+    @apply text-accent-cyan hover:text-accent-violet transition-colors duration-150;
+  }
+}
+
+/* ─── Component Layer ─── */
+@layer components {
+
+  /* Glass card */
+  .glass-card {
+    @apply bg-surface-glass backdrop-blur-xl border border-border-glass rounded-2xl p-6 transition-all duration-300 hover:border-border-glass-hover hover:shadow-glass hover:-translate-y-0.5;
+  }
+
+  /* Primary gradient button */
+  .btn-gradient {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white rounded-xl bg-gradient-to-br from-accent-cyan to-accent-violet shadow-sm transition-all duration-300 hover:shadow-glow-cyan hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:translate-y-0;
+  }
+
+  /* Ghost / secondary button */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-slate-100 rounded-xl bg-surface-glass border border-border-glass transition-all duration-300 hover:bg-surface-glass-hover hover:border-border-glass-hover disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Form input */
+  .input-glass {
+    @apply w-full px-4 py-3 bg-surface-glass border border-border-glass rounded-xl text-slate-100 placeholder-slate-500 font-sans text-base outline-none transition-all duration-150 focus:border-accent-cyan focus:ring-2 focus:ring-accent-cyan-dim;
+  }
+
+  /* Badge */
+  .badge-real {
+    @apply inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider bg-emerald-500/15 text-emerald-400;
+  }
+
+  .badge-fake {
+    @apply inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider bg-red-500/15 text-red-400;
+  }
+
+  .badge-info {
+    @apply inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider bg-accent-cyan-dim text-accent-cyan;
+  }
+
+  .badge-warning {
+    @apply inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider bg-amber-500/15 text-amber-400;
+  }
+
+  /* Page container */
+  .page-container {
+    @apply flex-1 w-full max-w-6xl mx-auto px-6 py-8;
+  }
+}
+
+/* ─── Mesh Background ─── */
+.mesh-bg::before {
+  content: '';
+  @apply absolute w-[600px] h-[600px] rounded-full -top-48 -right-48;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.08), transparent 70%);
+  animation: meshFloat 20s ease-in-out infinite;
+}
+
+.mesh-bg::after {
+  content: '';
+  @apply absolute w-[500px] h-[500px] rounded-full -bottom-36 -left-36;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.06), transparent 70%);
+  animation: meshFloat 25s ease-in-out infinite reverse;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ─── Textarea ─── */
+textarea.input-glass {
+  @apply resize-y min-h-[140px] leading-relaxed;
+}
