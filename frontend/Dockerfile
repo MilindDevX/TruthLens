@@ -3,7 +3,7 @@
 # VITE_API_URL is set at build time via ARG
 
 # ─── Stage 1: Build ───
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /build
 
