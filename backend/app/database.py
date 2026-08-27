@@ -12,8 +12,28 @@ from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
 
 
+def _normalize_db_url(url: str) -> str:
+    """
+    Normalize the database URL to use async drivers.
+
+    Hosting providers (Render, Railway, Heroku) supply standard postgresql:// URLs,
+    but SQLAlchemy's async engine requires postgresql+asyncpg://.
+    This function silently corrects the scheme so the app boots regardless of
+    how DATABASE_URL is set in the environment.
+    """
+    if url.startswith("postgres://"):
+        # Some providers use the legacy 'postgres://' alias
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
+# Normalize to async-compatible URL
+_db_url = _normalize_db_url(settings.DATABASE_URL)
+
 # Detect database type for engine configuration
-_is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+_is_sqlite = _db_url.startswith("sqlite")
 
 # Engine kwargs differ by database type
 _engine_kwargs = {}
@@ -30,9 +50,9 @@ else:
         "connect_args": {"check_same_thread": False},
     }
 
-# Async engine
+# Async engine — uses the normalized URL with asyncpg driver
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    _db_url,
     echo=settings.DEBUG,
     **_engine_kwargs,
 )
