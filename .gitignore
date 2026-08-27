@@ -12,3 +12,7 @@ build/
 coverage/
 .next/
 .vercel
+.ai-workflow/
+.agent/
+.agents/
+Agent_Outputs/
