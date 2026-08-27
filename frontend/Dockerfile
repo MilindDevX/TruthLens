@@ -1,5 +1,5 @@
 # ─── TruthLens Frontend Dockerfile ───
-# Multi-stage: Node build → Nginx serve
+# Multi-stage: pnpm build → Nginx serve
 # VITE_API_URL is set at build time via ARG
 
 # ─── Stage 1: Build ───
@@ -7,9 +7,12 @@ FROM node:22-alpine AS builder
 
 WORKDIR /build
 
+# Enable corepack for pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 # Copy package files first for layer caching
-COPY package.json package-lock.json ./
-RUN npm ci --silent
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 
 # Copy source and build
 COPY . .
@@ -18,7 +21,7 @@ COPY . .
 ARG VITE_API_URL=/api/v1
 ENV VITE_API_URL=$VITE_API_URL
 
-RUN npm run build
+RUN pnpm run build
 
 
 # ─── Stage 2: Serve with Nginx ───

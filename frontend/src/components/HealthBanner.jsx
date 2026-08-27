@@ -11,8 +11,18 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-const HEALTH_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1')
-  .replace('/api/v1', '/health');
+// Derive health URL: strip /api/v1 suffix, append /health
+// Works for both relative ("/api/v1" → "/health") and absolute URLs
+const _apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const HEALTH_URL = (() => {
+  try {
+    const url = new URL(_apiBase, window.location.origin);
+    url.pathname = url.pathname.replace(/\/api\/v\d+\/?$/, '/health');
+    return url.toString();
+  } catch {
+    return _apiBase.replace(/\/api\/v\d+\/?$/, '/health');
+  }
+})();
 const POLL_INTERVAL = 30_000;
 
 export default function HealthBanner() {

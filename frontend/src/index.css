@@ -103,3 +103,18 @@
 textarea.input-glass {
   @apply resize-y min-h-[140px] leading-relaxed;
 }
+
+/* ─── Keyframes for raw CSS usage (pseudo-elements bypass Tailwind) ─── */
+@keyframes meshFloat {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(40px, -30px); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.2s ease-out;
+}
