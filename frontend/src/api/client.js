@@ -12,8 +12,12 @@
 import axios from 'axios';
 import { toast } from '../components/Toast';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+let API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
+// Gracefully handle if VITE_API_URL is set to just the root domain (e.g., in Vercel)
+if (!API_BASE.endsWith('/api/v1') && !API_BASE.endsWith('/api/v1/')) {
+  API_BASE = API_BASE.replace(/\/+$/, '') + '/api/v1';
+}
 // ─── Token Storage (memory-only, XSS-safe) ───
 let accessToken = null;
 let refreshToken = null;
