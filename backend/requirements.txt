@@ -28,6 +28,7 @@ scikit-learn==1.6.1
 torch==2.5.1
 transformers==4.47.1
 joblib==1.4.2
+huggingface_hub==0.24.6
 
 # Explainability
 shap==0.46.0
