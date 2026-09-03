@@ -59,26 +59,25 @@ def download_from_hf(repo_id: str, version: str) -> bool:
 
         logger.info(f"  Downloading {repo_path} from {repo_id}...")
         try:
-            downloaded = hf_hub_download(
-                repo_id=repo_id,
-                filename=repo_path,
-                repo_type="model",
-                local_dir=MODELS_DIR,
-                local_dir_use_symlinks=False,
-            )
-            # hf_hub_download may place file in a subdir; copy to expected path if needed
-            if downloaded != local_path and os.path.exists(downloaded):
-                import shutil
+            import shutil, tempfile
+            # Download to a temp cache dir to avoid path nesting issues
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                downloaded = hf_hub_download(
+                    repo_id=repo_id,
+                    filename=repo_path,
+                    repo_type="model",
+                    local_dir=tmp_dir,
+                    local_dir_use_symlinks=False,
+                )
                 os.makedirs(os.path.dirname(local_path), exist_ok=True)
                 shutil.copy2(downloaded, local_path)
-                logger.info(f"  Copied to: {local_path}")
-            else:
                 logger.info(f"  Saved to: {local_path}")
         except Exception as e:
             logger.error(f"  Failed to download {repo_path}: {e}")
             return False
 
     return True
+
 
 
 def main():
