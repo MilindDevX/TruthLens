@@ -22,7 +22,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("truthlens.startup.models")
 
-MODELS_DIR = os.environ.get("MODELS_DIR", "/app/models")
+DEFAULT_MODELS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+    "models"
+)
+MODELS_DIR = os.environ.get("MODELS_DIR", DEFAULT_MODELS_DIR)
 HF_MODEL_REPO = os.environ.get("HF_MODEL_REPO", "")
 MODEL_VERSION = os.environ.get("ACTIVE_TEXT_MODEL_VERSION", "v1.0.0")
 
