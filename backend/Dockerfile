@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+# Install huggingface_hub for runtime model download at container startup
+RUN pip install --no-cache-dir --prefix=/install "huggingface_hub==0.24.6"
 # Install gunicorn separately (not in requirements.txt)
 RUN pip install --no-cache-dir --prefix=/install gunicorn==23.0.0
 
@@ -39,6 +41,9 @@ COPY --from=builder /install /usr/local
 # Copy application code
 COPY . .
 
+# Create scripts directory in case it wasn't included
+RUN mkdir -p /app/scripts
+
 # Create directories for models and data
 RUN mkdir -p /app/models /app/data && chown -R truthlens:truthlens /app
 
@@ -53,4 +58,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Run with gunicorn + uvicorn workers
-CMD ["gunicorn", "app.main:app", "-c", "gunicorn.conf.py"]
+# Download ML models from Hugging Face Hub at startup (if HF_MODEL_REPO is set),
+# then start gunicorn. Script exits 0 on failure so we degrade gracefully.
+CMD ["sh", "-c", "python /app/scripts/download_models.py && gunicorn app.main:app -c gunicorn.conf.py"]

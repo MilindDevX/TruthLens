@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     )
     ACTIVE_TEXT_MODEL_VERSION: str = "v1.0.0"
     ACTIVE_IMAGE_MODEL_VERSION: str = "v1.0.0"
+    # Hugging Face model repository for production model download
+    # Set this env var on Render: HF_MODEL_REPO=yourname/truthlens-models
+    HF_MODEL_REPO: Optional[str] = Field(
+        default=None,
+        description="Hugging Face Hub repo ID for downloading trained models at startup"
+    )
 
     # ─── Logging ───
     LOG_LEVEL: str = "INFO"
