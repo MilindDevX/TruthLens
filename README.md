@@ -2,19 +2,17 @@
 
 # TruthLens 🔍
 
-**AI Content Verification & Interpretability Platform**
+**Fake-News Classification & Interpretability Platform**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.5-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
 <br/>
 
-*An end-to-end ML platform that detects AI-generated content with **91.3% F1-score**,<br/>
-serves inference in **< 300ms** on CPU, and explains its reasoning through token-level heatmaps.*
+*A fake-news classification platform with fail-closed serving and token-level SHAP explanations.*
 
 <br/>
 
@@ -26,10 +24,10 @@ serves inference in **< 300ms** on CPU, and explains its reasoning through token
 
 ## Why TruthLens?
 
-Most AI-content detectors are black boxes — they tell you *what*, but never *why*. TruthLens is different:
+TruthLens classifies fake-news signals and exposes the baseline model’s reasoning:
 
-- **Multi-Model Ensemble** — A baseline TF-IDF + Logistic Regression model runs alongside a fine-tuned DistilBERT, fused by a meta-model for robust credibility scoring.
-- **Explainability-First** — SHAP, LIME, and attention-based token heatmaps show users exactly which words triggered the prediction.
+- **Baseline Classifier** — TF-IDF + Logistic Regression provides the current fake-news classification result.
+- **Explainability-First** — SHAP token attribution shows which terms influenced a baseline prediction.
 - **Production-Grade** — Gunicorn + Uvicorn workers, asyncio-native database layer, JWT auth with refresh token rotation, rate limiting, structured JSON logging, and real-time drift monitoring.
 - **Zero-Config Deployment** — One `docker compose up --build` spins up PostgreSQL, FastAPI, and an Nginx-served React SPA.
 
@@ -39,15 +37,15 @@ Most AI-content detectors are black boxes — they tell you *what*, but never *w
 
 | Category | Feature |
 |----------|---------|
-| **Detection** | Binary classification (real vs. AI-generated) with 93.1% accuracy, 91.3% F1-score |
-| **Inference** | < 300ms latency on CPU — no GPU required |
-| **Explainability** | Token-level SHAP / LIME / attention heatmaps for every prediction |
-| **Credibility Score** | Meta-model fuses baseline + advanced model outputs into a single 0–1 credibility score |
+| **Detection** | Binary fake-news classification (real vs. fake) plus published fact-check lookup |
+| **Serving safety** | Returns 503 rather than a result when no valid baseline is loaded |
+| **Explainability** | Token-level SHAP attribution for baseline predictions |
+| **Probability** | Displays the selected model’s estimated P(real) |
 | **Auth** | JWT (access + refresh with rotation & compromise detection) + Google OAuth |
 | **Drift Monitoring** | Rolling-window KL divergence, confidence tracking, and class-balance alerts |
 | **Analysis History** | Paginated history with dedup caching — skip inference for identical inputs |
 | **Admin Panel** | Dev-only admin routes for system inspection |
-| **UI** | Glassmorphism React dashboard with credibility gauge, token heatmap, and model comparison |
+| **UI** | React dashboard with P(real), token heatmap, model detail, and fact-check evidence |
 
 ---
 
@@ -70,14 +68,12 @@ Most AI-content detectors are black boxes — they tell you *what*, but never *w
                   │                       │          │
                   │        ┌──────────────▼────────┐ │
                   │        │  TextInferenceService  │ │
-                  │        │  ┌──────┐ ┌─────────┐ │ │
-                  │        │  │TF-IDF│ │DistilBERT│ │ │
-                  │        │  │ + LR │ │(PyTorch) │ │ │
-                  │        │  └──┬───┘ └────┬─────┘ │ │
-                  │        │     └────┬─────┘       │ │
-                  │        │    Meta-Model Fusion    │ │
-                  │        │    + SHAP / Attention   │ │
-                  │        │    + Drift Monitor      │ │
+                  │        │  ┌───────────────┐      │ │
+                  │        │  │ TF-IDF +       │      │ │
+                  │        │  │ Logistic       │      │ │
+                  │        │  │ Regression     │      │ │
+                  │        │  └───────┬───────┘      │ │
+                  │        │      SHAP + Drift       │ │
                   │        └────────────────────────┘ │
                   └──────────────┬───────────────────┘
                                  │
@@ -99,7 +95,7 @@ TruthLens/
 │   │   ├── history/            # Paginated analysis history
 │   │   ├── middleware/         # Rate limiter, structured logging
 │   │   ├── ml/
-│   │   │   ├── text_inference.py   # Dual-model inference service
+│   │   │   ├── text_inference.py   # Baseline inference; advanced only when its artifact exists
 │   │   │   ├── drift_monitor.py    # KL divergence + confidence tracking
 │   │   │   ├── model_loader.py     # Eager model loading at startup
 │   │   │   └── dependencies.py     # FastAPI DI for ML services
@@ -126,7 +122,7 @@ TruthLens/
 ├── ml/
 │   ├── training/               # Model training scripts
 │   └── explainability/
-│       ├── text_explainer.py   # SHAP + LIME + attention explainability
+│       ├── text_explainer.py   # Explainability utilities
 │       └── adversarial.py      # Adversarial robustness testing
 ├── docker-compose.yml          # Full-stack orchestration (4 services)
 ├── .env.docker                 # Production environment config
@@ -139,11 +135,8 @@ TruthLens/
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **ML Model** | DistilBERT (`distilbert-base-uncased`) | Fine-tuned binary sequence classifier |
-| **ML Baseline** | TF-IDF + Logistic Regression (scikit-learn) | Fast baseline predictions via joblib |
-| **ML Framework** | PyTorch 2.5 | Model inference (CPU-optimized, `torch.no_grad()`) |
-| **NLP** | Hugging Face Transformers | Tokenization + model serving |
-| **Explainability** | SHAP 0.46, LIME 0.2 | Token-level feature attribution |
+| **ML Model** | TF-IDF + Logistic Regression (scikit-learn) | Baseline fake-news classifier via joblib |
+| **Explainability** | SHAP 0.46 | Token-level baseline feature attribution |
 | **Backend** | FastAPI 0.115, Gunicorn, Uvicorn | Async ASGI with production workers |
 | **Database** | PostgreSQL 16 + SQLAlchemy 2.0 + asyncpg | Async ORM with Alembic migrations |
 | **Auth** | python-jose (JWT), passlib (bcrypt) | Access + refresh tokens, Google OAuth |
@@ -246,7 +239,8 @@ pnpm run dev
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/v1/analyze/text` | Analyze text for AI-generated content |
+| `POST` | `/api/v1/analyze/text` | Analyze news text for fake-news signals |
+| `POST` | `/api/v1/analyze/fact-check` | Look up a published ClaimReview fact check |
 
 **Request:**
 ```json
@@ -264,10 +258,16 @@ pnpm run dev
   "confidence": 0.94,
   "low_confidence_flag": false,
   "model_scores": {
-    "baseline": { "prediction": "fake", "confidence": 0.89 },
-    "advanced": { "prediction": "fake", "confidence": 0.96 }
+    "baseline": { "prediction": "fake", "confidence": 0.89 }
   },
   "credibility_score": 0.08,
+  "fact_check": {
+    "status": "matched",
+    "claim": "A related published claim",
+    "rating": "False",
+    "publisher": "Example fact-checker",
+    "url": "https://example.com/review"
+  },
   "explainability": {
     "type": "shap",
     "influential_tokens": [
@@ -276,7 +276,7 @@ pnpm run dev
       { "token": "landscape", "impact": 0.78 }
     ]
   },
-  "disclaimer": "This is an AI-generated estimate. It does not replace professional fact-checking.",
+  "disclaimer": "This is a model estimate. It does not replace professional fact-checking.",
   "model_version": "v1.0.0",
   "created_at": "2026-08-27T10:00:00Z"
 }
@@ -299,37 +299,29 @@ pnpm run dev
 ## 🧠 Machine Learning Pipeline
 
 ### Dataset
-- **10,000 balanced samples** — GPT-4 generated, Claude generated, and human-written text
-- **Preprocessing:** Cleaning, tokenization, and truncation via Hugging Face `transformers`
-- **Genres tested:** News articles, essays, casual text (bias/fairness evaluation)
+- **ISOT fake-news data** — corrected label mapping is required before training.
+- **Preprocessing:** TF-IDF baseline cleaning, stopword removal, and lemmatization.
+- **Evaluation:** retraining must produce fresh held-out and smoke-set evidence before deployment.
+- **Fact checks:** `matched` links a published review; `not_found` and `unavailable` are not truth verdicts.
 
 ### Model Architecture
 
 | Model | Role | Details |
 |-------|------|---------|
-| **Baseline** | Fast first-pass | TF-IDF vectorizer + Logistic Regression (scikit-learn, loaded via joblib) |
-| **Advanced** | High-accuracy | `distilbert-base-uncased` fine-tuned for binary sequence classification |
-| **Meta-Model** | Score fusion | Combines baseline + advanced outputs into a single credibility score |
+| **Baseline** | Current classifier | TF-IDF vectorizer + Logistic Regression (scikit-learn, loaded via joblib) |
 
-> **Why DistilBERT?** — 97% of BERT's performance, 60% faster, 40% smaller → enables sub-300ms CPU inference without GPU acceleration.
+> **Model availability:** the server rejects analysis requests when no valid baseline artifact is loaded.
 
 ### Evaluation Metrics
 
 | Metric | Score |
 |--------|-------|
-| **Accuracy** | 93.1% |
-| **F1-Score** | 91.3% |
-| **Precision & Recall** | Tracked independently (per-class) |
-| **ROC-AUC** | Assessed during training |
-| **Bias & Fairness** | Evaluated across news, essays, casual text genres |
+| **Current deployment (interim)** | `v1.0.0`; it has reversed labels and is not a validated production artifact |
+| **Replacement artifact** | Requires corrected-data held-out, OOD, and smoke-set results before deployment |
 
 ### Explainability
 
-TruthLens provides three explainability methods:
-
-1. **SHAP** — Shapley value-based feature attribution showing each token's contribution to the prediction
-2. **LIME** — Local surrogate model explanations for individual predictions
-3. **Attention Weights** — DistilBERT attention head visualizations
+TruthLens provides SHAP feature attribution for the baseline model, showing each token's contribution to its prediction.
 
 ### Drift Monitoring
 
@@ -364,7 +356,8 @@ Alerts fire via structured JSON logs when thresholds are exceeded — without sl
 | `MAX_TEXT_WORDS` | `5000` | Max text input (words) |
 | `MAX_TEXT_CHARS` | `30000` | Max text input (characters) |
 | `MAX_IMAGE_SIZE_MB` | `10` | Max image upload size |
-| `ACTIVE_TEXT_MODEL_VERSION` | `v1.0.0` | Active text model version |
+| `ACTIVE_TEXT_MODEL_VERSION` | Set explicitly | Set only to a validated artifact; `v1.1.0` remains withheld pending evaluation |
+| `FACT_CHECK_API_KEY` | — | Server-only Google Claim Search key; enables published-review lookup |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
 | `CORS_ORIGINS` | `localhost:5173,3000` | Allowed CORS origins |
 | `GUNICORN_WORKERS` | `4` (capped) | Worker count (auto-tuned to CPU cores) |
@@ -395,7 +388,7 @@ pytest tests/test_load.py -v
 | **Inference Latency** | < 300ms (CPU, no GPU) |
 | **Frontend Build** | ~860ms (112 modules, Vite 7) |
 | **Production Bundle** | 312 KB JS (100 KB gzipped) + 27 KB CSS |
-| **Startup** | Eager model loading → zero cold-start |
+| **Startup** | Models load at startup; startup time includes model download and deserialization |
 | **Concurrency** | Gunicorn multi-worker + async SQLAlchemy |
 
 ---
