@@ -33,10 +33,18 @@ class ExplainabilityData(BaseModel):
     heatmap_path: Optional[str] = None  # For Grad-CAM (Phase 2)
 
 
+class FactCheckResult(BaseModel):
+    status: str = Field(description="matched | not_found | unavailable")
+    claim: Optional[str] = None
+    rating: Optional[str] = None
+    publisher: Optional[str] = None
+    url: Optional[str] = None
+
+
 class AnalysisResponse(BaseModel):
     """
     Full analysis response with prediction, confidence, model scores,
-    credibility score, explainability data, and mandatory disclaimer.
+    P(real), explainability data, and a disclaimer.
     """
     id: UUID
     content_type: str = Field(description="text | image | multimodal")
@@ -46,14 +54,15 @@ class AnalysisResponse(BaseModel):
         description="True if confidence is between 0.4–0.6 (manual review recommended)"
     )
     model_scores: dict[str, ModelScore] = Field(
-        description="Per-model breakdown (baseline, advanced)"
+        description="Scores from models that actually ran"
     )
     credibility_score: float = Field(
         ge=0.0, le=1.0,
-        description="Meta-model credibility score"
+        description="Estimated probability that the text is real"
     )
     explainability: Optional[ExplainabilityData] = None
-    disclaimer: str = "This is an AI-generated estimate. It does not replace professional fact-checking."
+    fact_check: Optional[FactCheckResult] = None
+    disclaimer: str = "This is a model estimate. It does not replace professional fact-checking."
     model_version: str
     created_at: datetime
 

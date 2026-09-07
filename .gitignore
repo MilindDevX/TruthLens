@@ -16,3 +16,5 @@ coverage/
 .agent/
 .agents/
 Agent_Outputs/
+.neon
+backend/.local-secrets/

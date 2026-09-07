@@ -8,6 +8,7 @@ import { analyzeAPI } from '../api/endpoints';
 import CredibilityGauge from '../components/CredibilityGauge';
 import TokenHeatmap from '../components/TokenHeatmap';
 import ModelComparison from '../components/ModelComparison';
+import FactCheckEvidence from '../components/FactCheckEvidence';
 
 export default function Dashboard() {
   const [text, setText] = useState('');
@@ -49,7 +50,7 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-100 to-accent-cyan bg-clip-text text-transparent">
             Analyze Content
           </h1>
-          <p className="text-slate-400 mt-1">Paste text to check for misinformation or AI-generated content</p>
+          <p className="text-slate-400 mt-1">Paste news text to assess fake-news signals</p>
         </div>
 
         {/* Input Area */}
@@ -122,10 +123,12 @@ export default function Dashboard() {
               <CredibilityGauge score={result.credibility_score} size={120} />
             </div>
 
+            {result.fact_check && <FactCheckEvidence result={result.fact_check} />}
+
             {/* Model Comparison */}
             <div>
               <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
-                Model Breakdown
+                Model Used
               </h3>
               <ModelComparison modelScores={result.model_scores} />
             </div>

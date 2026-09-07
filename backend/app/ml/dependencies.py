@@ -30,10 +30,10 @@ def get_text_inference(request: Request) -> TextInferenceService:
     """
     service = getattr(request.app.state, "text_inference", None)
 
-    if service is None:
+    if service is None or not service.has_baseline:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Text inference service not available. Models may not be loaded.",
+            detail="Text model unavailable. Try again later.",
         )
 
     return service

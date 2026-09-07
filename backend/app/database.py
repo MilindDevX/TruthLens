@@ -9,6 +9,7 @@ Supports both PostgreSQL (production) and SQLite (development):
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from app.config import settings
 
 
@@ -26,7 +27,13 @@ def _normalize_db_url(url: str) -> str:
         url = url.replace("postgres://", "postgresql+asyncpg://", 1)
     elif url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    return url
+    # asyncpg accepts ``ssl`` but not libpq's ``sslmode`` query parameter.
+    url = url.replace("sslmode=", "ssl=")
+    parts = urlsplit(url)
+    query = urlencode(
+        [(key, value) for key, value in parse_qsl(parts.query) if key != "channel_binding"]
+    )
+    return urlunsplit(parts._replace(query=query))
 
 
 # Normalize to async-compatible URL

@@ -98,7 +98,7 @@ class TextInferenceService:
             }
 
         Graceful degradation:
-        - If advanced model is missing → baseline-only, advanced echoes baseline
+        - If advanced model is missing → baseline-only result
         - If baseline is missing → error (at least one model required)
         """
         async with self._lock:
@@ -144,9 +144,7 @@ class TextInferenceService:
             result["advanced"] = self._predict_advanced(advanced_text)
             timings.advanced_ms = round((time.perf_counter() - t0) * 1000, 2)
         else:
-            # Graceful degradation: echo baseline
-            result["advanced"] = result["baseline"].copy()
-            logger.debug("Advanced model not loaded — falling back to baseline")
+            logger.debug("Advanced model not loaded — returning baseline-only result")
 
         timings.total_ms = round((time.perf_counter() - total_start) * 1000, 2)
         result["timings"] = timings

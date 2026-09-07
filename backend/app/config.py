@@ -68,6 +68,7 @@ class Settings(BaseSettings):
         default=None,
         description="Hugging Face Hub repo ID for downloading trained models at startup"
     )
+    FACT_CHECK_API_KEY: Optional[str] = None
 
     # ─── Logging ───
     LOG_LEVEL: str = "INFO"
@@ -85,7 +86,7 @@ class Settings(BaseSettings):
     ]
 
     model_config = {
-        "env_file": ".env",
+        "env_file": (".env", ".local-secrets/truthlens.env"),
         "env_file_encoding": "utf-8",
         "case_sensitive": True,
     }

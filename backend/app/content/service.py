@@ -16,12 +16,18 @@ from fastapi import Request
 
 from app.content.validators import validate_text_input, compute_content_hash
 from app.content.schemas import (
-    AnalysisResponse, ModelScore, ExplainabilityData, TokenImpact,
+    AnalysisResponse, ModelScore, ExplainabilityData, FactCheckResult, TokenImpact,
 )
+from app.content.fact_check import search_fact_checks
 from app.history.models import AnalysisHistory
 from app.ml.text_inference import TextInferenceService
 
 logger = logging.getLogger("truthlens.content")
+
+
+def select_final_model(prediction_result: dict) -> dict:
+    """Use the advanced score only when an advanced model actually returned one."""
+    return prediction_result.get("advanced", prediction_result["baseline"])
 
 
 async def analyze_text(
@@ -29,15 +35,15 @@ async def analyze_text(
     text: str,
     user_id: UUID,
     request: Request,
-    inference_service: Optional[TextInferenceService] = None,
+    inference_service: TextInferenceService,
 ) -> AnalysisResponse:
     """
     Full text analysis pipeline:
     1. Validate and sanitize input
     2. Check content dedup cache (SHA-256)
     3. Run inference (baseline + advanced) via TextInferenceService
-    4. Compute credibility score (meta-model or advanced probability)
-    5. Generate explainability (SHAP for baseline / attention for advanced)
+    4. Compute estimated P(real)
+    5. Generate available explainability data
     6. Record drift stats
     7. Save to history
     8. Return structured response with timing
@@ -56,38 +62,29 @@ async def analyze_text(
         request.state.timing["preprocessing_ms"] = preprocess_ms
         request.state.timing["inference_ms"] = 0
         request.state.timing["cache_hit"] = True
-        return cached
+        return cached.model_copy(
+            update={"fact_check": FactCheckResult(**await search_fact_checks(clean_text))}
+        )
 
     # Step 3: Run inference
     inference_start = time.perf_counter()
 
-    if inference_service is not None and (
-        inference_service.has_baseline or inference_service.has_advanced
-    ):
-        prediction_result = await inference_service.predict(clean_text)
-        model_version = inference_service.version
-    else:
-        # Placeholder mode — no trained models available
-        prediction_result = _placeholder_prediction(clean_text)
-        model_version = "placeholder"
+    prediction_result = await inference_service.predict(clean_text)
+    model_version = inference_service.version
+    fact_check = FactCheckResult(**await search_fact_checks(clean_text))
 
     inference_ms = round((time.perf_counter() - inference_start) * 1000, 2)
 
     # Step 4: Explainability
     explain_start = time.perf_counter()
 
-    if inference_service is not None and (
-        inference_service.has_baseline or inference_service.has_advanced
-    ):
-        explain_result = await inference_service.explain(clean_text)
-        explainability = ExplainabilityData(
-            type=explain_result.get("type", "none"),
-            influential_tokens=[
-                TokenImpact(**t) for t in explain_result.get("influential_tokens", [])
-            ],
-        )
-    else:
-        explainability = None
+    explain_result = await inference_service.explain(clean_text)
+    explainability = ExplainabilityData(
+        type=explain_result.get("type", "none"),
+        influential_tokens=[
+            TokenImpact(**t) for t in explain_result.get("influential_tokens", [])
+        ],
+    )
 
     explain_ms = round((time.perf_counter() - explain_start) * 1000, 2)
 
@@ -97,31 +94,22 @@ async def analyze_text(
             prediction=prediction_result["baseline"]["prediction"],
             confidence=prediction_result["baseline"]["confidence"],
         ),
-        "advanced": ModelScore(
+    }
+    if "advanced" in prediction_result:
+        model_scores["advanced"] = ModelScore(
             prediction=prediction_result["advanced"]["prediction"],
             confidence=prediction_result["advanced"]["confidence"],
-        ),
-    }
+        )
 
-    # Use advanced model's prediction as final
-    final_prediction = prediction_result["advanced"]["prediction"]
-    final_confidence = prediction_result["advanced"]["confidence"]
+    final_model = select_final_model(prediction_result)
+    final_prediction = final_model["prediction"]
+    final_confidence = final_model["confidence"]
 
-    # Step 6: Credibility score
-    # Until meta-model is trained, use weighted combination:
-    # 70% advanced confidence + 30% baseline confidence (if both available)
-    baseline_conf = prediction_result["baseline"]["confidence"]
-    advanced_conf = prediction_result["advanced"]["confidence"]
+    # Step 6: P(real), derived directly from the selected model's P(fake).
+    credibility_score = round(1 - final_model["probability"], 4)
 
-    if prediction_result["baseline"]["prediction"] == prediction_result["advanced"]["prediction"]:
-        # Models agree — use weighted average
-        credibility_score = round(0.7 * advanced_conf + 0.3 * baseline_conf, 4)
-    else:
-        # Models disagree — use final model's confidence, penalized
-        credibility_score = round(final_confidence * 0.85, 4)
-
-    # Step 7: Determine low confidence flag (0.4 - 0.6 range)
-    low_confidence = 0.4 <= credibility_score <= 0.6
+    # Step 7: Flag probabilities near the decision boundary.
+    low_confidence = 0.4 <= final_model["probability"] <= 0.6
 
     # Step 8: Record drift stats
     drift_monitor = getattr(request.app.state, "drift_monitor", None)
@@ -165,9 +153,16 @@ async def analyze_text(
         model_scores=model_scores,
         credibility_score=credibility_score,
         explainability=explainability,
+        fact_check=fact_check,
         model_version=model_version,
         created_at=history_record.created_at,
     )
+
+
+async def fact_check_text(text: str) -> FactCheckResult:
+    """Look up published fact checks without relying on a local classifier."""
+    clean_text = validate_text_input(text)
+    return FactCheckResult(**await search_fact_checks(clean_text))
 
 
 async def _check_dedup_cache(
@@ -215,27 +210,3 @@ async def _check_dedup_cache(
         model_version=cached.model_version,
         created_at=cached.created_at,
     )
-
-
-def _placeholder_prediction(text: str) -> dict:
-    """
-    Placeholder prediction when no trained models are available.
-    Uses deterministic hash-based randomization for consistent results.
-    """
-    import random
-    random.seed(hash(text) % 2**32)
-
-    baseline_conf = round(random.uniform(0.3, 0.95), 4)
-    advanced_conf = round(random.uniform(0.4, 0.98), 4)
-
-    return {
-        "baseline": {
-            "prediction": "fake" if baseline_conf > 0.5 else "real",
-            "confidence": baseline_conf,
-        },
-        "advanced": {
-            "prediction": "fake" if advanced_conf > 0.5 else "real",
-            "confidence": advanced_conf,
-        },
-        "timings": None,
-    }
