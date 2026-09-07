@@ -1,5 +1,5 @@
 /**
- * Animated SVG radial gauge showing credibility score (0–100%).
+ * Animated SVG radial gauge showing estimated P(real) (0–100%).
  *
  * Color:  red (<40%) → amber (40–70%) → green (>70%)
  * Animation: spring easing on mount.
@@ -66,7 +66,7 @@ export default function CredibilityGauge({ score = 0, size = 160 }) {
         </div>
       </div>
       <div className="text-center">
-        <span className={`text-sm font-semibold ${text}`}>{label} Credibility</span>
+        <span className={`text-sm font-semibold ${text}`}>{label} P(real)</span>
       </div>
     </div>
   );

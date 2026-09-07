@@ -62,9 +62,11 @@ async def analyze_text(
         request.state.timing["preprocessing_ms"] = preprocess_ms
         request.state.timing["inference_ms"] = 0
         request.state.timing["cache_hit"] = True
-        return cached.model_copy(
-            update={"fact_check": FactCheckResult(**await search_fact_checks(clean_text))}
-        )
+        fact_check = FactCheckResult(**await search_fact_checks(clean_text))
+        return cached.model_copy(update={
+            "fact_check": fact_check,
+            "evidence_priority": "published_fact_check" if fact_check.status == "matched" else "model_estimate",
+        })
 
     # Step 3: Run inference
     inference_start = time.perf_counter()
@@ -154,6 +156,7 @@ async def analyze_text(
         credibility_score=credibility_score,
         explainability=explainability,
         fact_check=fact_check,
+        evidence_priority="published_fact_check" if fact_check.status == "matched" else "model_estimate",
         model_version=model_version,
         created_at=history_record.created_at,
     )

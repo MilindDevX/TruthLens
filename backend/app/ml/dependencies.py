@@ -42,7 +42,7 @@ def get_text_inference(request: Request) -> TextInferenceService:
 def get_text_inference_optional(request: Request) -> Optional[TextInferenceService]:
     """
     Optional variant — returns None instead of raising 503.
-    Used by endpoints that can function without ML models (e.g., placeholder mode).
+    Used only by endpoints that function without text-model inference.
     """
     return getattr(request.app.state, "text_inference", None)
 

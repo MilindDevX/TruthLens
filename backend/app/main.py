@@ -9,8 +9,9 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -99,8 +100,8 @@ app = FastAPI(
     title=settings.APP_NAME,
     description=(
         "Multi-Modal Content Authenticity Engine. "
-        "Detects misinformation in text, AI-generated text, and manipulated images. "
-        "Provides credibility scores and explainability (SHAP, Grad-CAM)."
+        "Detects fake-news signals in text. "
+        "Provides probability estimates and explainability."
     ),
     version=settings.APP_VERSION,
     lifespan=lifespan,
@@ -150,7 +151,7 @@ async def health_check():
     """
     # Inference service status
     text_inference = getattr(app.state, "text_inference", None)
-    text_loaded = text_inference is not None
+    text_loaded = text_inference is not None and text_inference.has_baseline
     text_status = {}
     if text_loaded:
         text_status = {
@@ -169,8 +170,8 @@ async def health_check():
     drift_monitor = getattr(app.state, "drift_monitor", None)
     drift_stats = drift_monitor.to_dict() if drift_monitor else None
 
-    return {
-        "status": "healthy",
+    response = {
+        "status": "healthy" if text_loaded else "unavailable",
         "version": settings.APP_VERSION,
         "models": {
             "text": text_status,
@@ -181,3 +182,12 @@ async def health_check():
         },
         "drift": drift_stats,
     }
+
+    if not text_loaded:
+        response["detail"] = "Text model unavailable. Try again later."
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content=response,
+        )
+
+    return response

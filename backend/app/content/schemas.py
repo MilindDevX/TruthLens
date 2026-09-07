@@ -62,6 +62,10 @@ class AnalysisResponse(BaseModel):
     )
     explainability: Optional[ExplainabilityData] = None
     fact_check: Optional[FactCheckResult] = None
+    evidence_priority: str = Field(
+        default="model_estimate",
+        description="published_fact_check when a review matches; otherwise model_estimate",
+    )
     disclaimer: str = "This is a model estimate. It does not replace professional fact-checking."
     model_version: str
     created_at: datetime

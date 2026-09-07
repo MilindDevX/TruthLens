@@ -1,12 +1,15 @@
 /**
- * Side-by-side model comparison cards (baseline vs advanced).
+ * Cards for models that actually contributed to this result.
  */
 
 export default function ModelComparison({ modelScores = {} }) {
-  const models = [
-    { key: 'baseline', label: 'Baseline', desc: 'TF-IDF + Logistic Regression', icon: '📊' },
-    { key: 'advanced', label: 'Advanced', desc: 'DistilBERT Transformer', icon: '🧠' },
-  ];
+  const modelDetails = {
+    baseline: { label: 'Baseline', desc: 'TF-IDF + Logistic Regression', icon: '📊' },
+    advanced: { label: 'Auxiliary', desc: 'Optional secondary model', icon: '🧠' },
+  };
+  const models = Object.keys(modelScores)
+    .filter((key) => modelDetails[key])
+    .map((key) => ({ key, ...modelDetails[key] }));
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -6,7 +6,7 @@ It is idempotent: if models are already present, it skips downloading.
 
 Environment variables:
     HF_MODEL_REPO  - Hugging Face repo ID (e.g. "yourname/truthlens-models")
-                     If not set, script exits silently (placeholder mode).
+                     If not set, the backend starts without a text model.
 
 Usage (in Dockerfile CMD):
     python /app/scripts/download_models.py && gunicorn app.main:app -c gunicorn.conf.py
@@ -28,7 +28,7 @@ DEFAULT_MODELS_DIR = os.path.join(
 )
 MODELS_DIR = os.environ.get("MODELS_DIR", DEFAULT_MODELS_DIR)
 HF_MODEL_REPO = os.environ.get("HF_MODEL_REPO", "")
-MODEL_VERSION = os.environ.get("ACTIVE_TEXT_MODEL_VERSION", "v1.0.0")
+MODEL_VERSION = os.environ.get("ACTIVE_TEXT_MODEL_VERSION", "")
 
 
 def models_already_present(version: str) -> bool:
@@ -45,7 +45,7 @@ def download_from_hf(repo_id: str, version: str) -> bool:
     try:
         from huggingface_hub import hf_hub_download
     except ImportError:
-        logger.warning("huggingface_hub not installed — running in placeholder mode")
+        logger.warning("huggingface_hub not installed — no text model will be available")
         return False
 
     target_dir = os.path.join(MODELS_DIR, "text", version)
@@ -85,10 +85,10 @@ def download_from_hf(repo_id: str, version: str) -> bool:
 
 
 def main():
-    if not HF_MODEL_REPO:
+    if not HF_MODEL_REPO or not MODEL_VERSION:
         logger.info(
-            "HF_MODEL_REPO not set — skipping model download (running in placeholder mode).\n"
-            "Set HF_MODEL_REPO=<username>/truthlens-models on Render to enable real ML."
+            "HF_MODEL_REPO or ACTIVE_TEXT_MODEL_VERSION not set — skipping model download.\n"
+            "Set both variables to enable text analysis."
         )
         sys.exit(0)
 
@@ -107,7 +107,7 @@ def main():
     else:
         logger.warning(
             "Model download failed or model.pkl not found. "
-            "Backend will start in placeholder mode."
+            "Backend will start without a text model."
         )
         # Exit 0 so gunicorn still starts — we degrade gracefully
         sys.exit(0)

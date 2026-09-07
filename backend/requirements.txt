@@ -24,7 +24,7 @@ email-validator==2.2.0
 slowapi==0.1.9
 
 # ML - Inference
-scikit-learn==1.6.1
+scikit-learn==1.5.2
 torch==2.5.1
 transformers==4.47.1
 joblib==1.4.2

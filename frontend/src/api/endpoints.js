@@ -24,6 +24,9 @@ export const authAPI = {
 export const analyzeAPI = {
   text: (text) =>
     client.post('/analyze/text', { text }).then((r) => r.data),
+
+  factCheck: (text) =>
+    client.post('/analyze/fact-check', { text }).then((r) => r.data),
 };
 
 // ─── History ───

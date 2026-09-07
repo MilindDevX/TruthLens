@@ -4,22 +4,23 @@
 
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import TelemetryPanel from '../components/TelemetryPanel';
 
 const features = [
   {
     icon: '🔍',
     title: 'Misinformation Detection',
-    desc: 'Dual-model analysis using TF-IDF baseline and DistilBERT transformer.',
+    desc: 'Baseline TF-IDF analysis for fake-news signals.',
   },
   {
     icon: '🧠',
     title: 'Explainability',
-    desc: 'See exactly which words influenced the prediction with SHAP and attention maps.',
+    desc: 'See exactly which words influenced the prediction with SHAP.',
   },
   {
     icon: '📊',
-    title: 'Credibility Scoring',
-    desc: 'Weighted credibility score combining multiple model perspectives.',
+    title: 'Probability Estimate',
+    desc: 'See the model’s estimated probability that text is real.',
   },
   {
     icon: '🛡️',
@@ -29,10 +30,10 @@ const features = [
 ];
 
 const stats = [
-  { value: '91.3%', label: 'F1-Score', detail: 'DistilBERT fine-tuned' },
-  { value: '<300ms', label: 'Inference', detail: 'CPU — no GPU needed' },
-  { value: '10K', label: 'Training Samples', detail: 'Balanced dataset' },
-  { value: '93.1%', label: 'Accuracy', detail: 'Multi-genre tested' },
+  { value: 'TF-IDF', label: 'Model', detail: 'Logistic regression baseline' },
+  { value: 'SHAP', label: 'Explanation', detail: 'Token-level signals' },
+  { value: 'News', label: 'Scope', detail: 'Fake-news classification' },
+  { value: '503', label: 'Safety', detail: 'No result without a model' },
 ];
 
 const steps = [
@@ -44,8 +45,8 @@ const steps = [
   },
   {
     num: '02',
-    title: 'AI Analysis',
-    desc: 'Dual-model inference with baseline + transformer ensemble.',
+    title: 'Model Analysis',
+    desc: 'Baseline fake-news classification runs on your text.',
     icon: '⚡',
   },
   {
@@ -62,25 +63,14 @@ export default function Landing() {
   return (
     <div className="page-container">
       {/* Hero */}
-      <section className="text-center pt-16 pb-20 animate-fade-in">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-accent-cyan-dim border border-accent-cyan/20 text-accent-cyan text-xs font-semibold mb-6">
-          <span className="w-2 h-2 rounded-full bg-accent-cyan animate-pulse" />
-          AI-Powered Content Verification
-        </div>
-        <h1 className="text-5xl sm:text-6xl font-black leading-tight mb-6">
-          <span className="bg-gradient-to-r from-slate-100 via-accent-cyan to-accent-violet bg-clip-text text-transparent">
-            Verify Truth.
-          </span>
-          <br />
-          <span className="text-slate-300">
-            Expose Deception.
-          </span>
-        </h1>
-        <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-          TruthLens uses multi-model AI to detect misinformation, identify AI-generated content,
-          and provide transparent explanations for every prediction.
-        </p>
-        <div className="flex items-center justify-center gap-4 flex-wrap">
+      <section className="landing-hero">
+        <div className="landing-hero__copy">
+          <p className="telemetry-kicker">TRUTHLENS / SIGNAL REVIEW</p>
+          <h1>Verify the signal.<br /><em>Keep the evidence.</em></h1>
+          <p className="landing-hero__lede">
+            A restrained fake-news estimate, an explainable model signal, and published fact checks where they exist.
+          </p>
+          <div className="flex items-center gap-4 flex-wrap">
           <Link
             to={isAuthenticated ? '/dashboard' : '/register'}
             className="btn-gradient text-base px-8 py-3.5"
@@ -93,7 +83,21 @@ export default function Landing() {
           >
             How It Works
           </a>
+          </div>
         </div>
+        <TelemetryPanel />
+      </section>
+
+      <section className="evidence-ledger" aria-labelledby="evidence-ledger-title">
+        <div>
+          <p className="telemetry-kicker">METHOD / 01—03</p>
+          <h2 id="evidence-ledger-title">Evidence stays<br />in the record.</h2>
+        </div>
+        <ol>
+          <li><span>01</span><div><strong>Signal</strong><p>A baseline model estimates fake-news risk. It is not a final fact verdict.</p></div></li>
+          <li><span>02</span><div><strong>Trace</strong><p>Token explanations show what influenced the estimate.</p></div></li>
+          <li><span>03</span><div><strong>Review</strong><p>Published ClaimReview evidence is linked separately when available.</p></div></li>
+        </ol>
       </section>
 
       {/* Stats Bar */}
@@ -167,13 +171,13 @@ export default function Landing() {
         <div className="flex items-center justify-center gap-4 sm:gap-8 text-slate-500 text-sm font-medium flex-wrap">
           <span>FastAPI</span>
           <span className="text-border-glass">·</span>
-          <span>DistilBERT</span>
+          <span>scikit-learn</span>
           <span className="text-border-glass">·</span>
           <span>SHAP</span>
           <span className="text-border-glass">·</span>
           <span>React</span>
           <span className="text-border-glass">·</span>
-          <span>PyTorch</span>
+          <span>Logistic Regression</span>
         </div>
       </section>
 

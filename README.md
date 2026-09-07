@@ -261,6 +261,7 @@ pnpm run dev
     "baseline": { "prediction": "fake", "confidence": 0.89 }
   },
   "credibility_score": 0.08,
+  "evidence_priority": "published_fact_check",
   "fact_check": {
     "status": "matched",
     "claim": "A related published claim",
@@ -277,10 +278,12 @@ pnpm run dev
     ]
   },
   "disclaimer": "This is a model estimate. It does not replace professional fact-checking.",
-  "model_version": "v1.0.0",
+  "model_version": "v1.3.0",
   "created_at": "2026-08-27T10:00:00Z"
 }
 ```
+
+`evidence_priority` is `published_fact_check` when a related ClaimReview is found. In that case, the publisher's review is the primary evidence and the classifier output remains a secondary estimate. `model_estimate` means no published review was available; it is not a truth verdict.
 
 ### Analysis History
 
@@ -356,8 +359,9 @@ Alerts fire via structured JSON logs when thresholds are exceeded — without sl
 | `MAX_TEXT_WORDS` | `5000` | Max text input (words) |
 | `MAX_TEXT_CHARS` | `30000` | Max text input (characters) |
 | `MAX_IMAGE_SIZE_MB` | `10` | Max image upload size |
-| `ACTIVE_TEXT_MODEL_VERSION` | Set explicitly | Set only to a validated artifact; `v1.1.0` remains withheld pending evaluation |
+| `ACTIVE_TEXT_MODEL_VERSION` | Set explicitly | Set only to a validated artifact; `v1.0.0`, `v1.1.0`, and `v1.2.0` are retired |
 | `FACT_CHECK_API_KEY` | — | Server-only Google Claim Search key; enables published-review lookup |
+| `JWT_SECRET_KEY` | — | Required in production; the backend refuses its development default |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
 | `CORS_ORIGINS` | `localhost:5173,3000` | Allowed CORS origins |
 | `GUNICORN_WORKERS` | `4` (capped) | Worker count (auto-tuned to CPU cores) |
@@ -421,6 +425,6 @@ This project is licensed under the [MIT License](LICENSE).
 
 <div align="center">
 
-**Built with ❤️ and a healthy skepticism of AI-generated text.**
+**Built with ❤️ and healthy skepticism.**
 
 </div>

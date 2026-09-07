@@ -136,4 +136,35 @@ async def test_cached_analysis_still_includes_external_evidence(monkeypatch):
     )
 
     assert result.fact_check.status == "not_found"
+    assert result.evidence_priority == "model_estimate"
     lookup.assert_awaited_once_with("Cached text")
+
+
+@pytest.mark.asyncio
+async def test_cached_analysis_marks_a_matched_review_as_primary_evidence(monkeypatch):
+    cached = AnalysisResponse(
+        id=uuid4(), content_type="text", prediction="real", confidence=0.8,
+        low_confidence_flag=False, model_scores={}, credibility_score=0.8,
+        model_version="v1.3.0", created_at=datetime.now(timezone.utc),
+    )
+    monkeypatch.setattr(service, "_check_dedup_cache", AsyncMock(return_value=cached))
+    monkeypatch.setattr(service, "search_fact_checks", AsyncMock(return_value={
+        "status": "matched", "publisher": "FactCheck.org", "rating": "False",
+    }))
+    request = SimpleNamespace(state=SimpleNamespace(timing={}))
+
+    result = await service.analyze_text(
+        db=None, text="Cached text", user_id=uuid4(), request=request, inference_service=None,
+    )
+
+    assert result.evidence_priority == "published_fact_check"
+
+
+def test_analysis_response_defaults_to_a_secondary_model_estimate():
+    response = AnalysisResponse(
+        id=uuid4(), content_type="text", prediction="real", confidence=0.8,
+        low_confidence_flag=False, model_scores={}, credibility_score=0.8,
+        model_version="v1.3.0", created_at=datetime.now(timezone.utc),
+    )
+
+    assert response.evidence_priority == "model_estimate"

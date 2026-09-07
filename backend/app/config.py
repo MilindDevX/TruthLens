@@ -4,7 +4,7 @@ All secrets loaded from environment variables or .env file.
 """
 
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, model_validator
 from typing import Optional
 import os
 
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models"),
         description="Root directory for versioned model storage"
     )
-    ACTIVE_TEXT_MODEL_VERSION: str = "v1.0.0"
+    ACTIVE_TEXT_MODEL_VERSION: str = ""
     ACTIVE_IMAGE_MODEL_VERSION: str = "v1.0.0"
     # Hugging Face model repository for production model download
     # Set this env var on Render: HF_MODEL_REPO=yourname/truthlens-models
@@ -90,6 +90,15 @@ class Settings(BaseSettings):
         "env_file_encoding": "utf-8",
         "case_sensitive": True,
     }
+
+    @model_validator(mode="after")
+    def require_production_jwt_secret(self):
+        if (
+            self.ENVIRONMENT == "production"
+            and self.JWT_SECRET_KEY == "CHANGE_ME_IN_PRODUCTION_USE_OPENSSL_RAND"
+        ):
+            raise ValueError("JWT_SECRET_KEY must be set in production.")
+        return self
 
 
 # Singleton instance

@@ -9,10 +9,12 @@ import CredibilityGauge from '../components/CredibilityGauge';
 import TokenHeatmap from '../components/TokenHeatmap';
 import ModelComparison from '../components/ModelComparison';
 import FactCheckEvidence from '../components/FactCheckEvidence';
+import { isPublishedFactCheck, shouldRunModelEstimate } from '../utils/factCheckPresentation';
 
 export default function Dashboard() {
   const [text, setText] = useState('');
   const [result, setResult] = useState(null);
+  const [factCheck, setFactCheck] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -21,12 +23,27 @@ export default function Dashboard() {
     setError('');
     setLoading(true);
     setResult(null);
+    setFactCheck(null);
+
+    let publishedEvidence = null;
+    try {
+      publishedEvidence = await analyzeAPI.factCheck(text);
+      setFactCheck(publishedEvidence);
+    } catch {
+      // Text analysis performs its own lookup if the standalone lookup fails.
+    }
 
     try {
-      const data = await analyzeAPI.text(text);
-      setResult(data);
+      if (shouldRunModelEstimate(publishedEvidence)) {
+        const data = await analyzeAPI.text(text);
+        setResult(data);
+      }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Analysis failed. Please try again.');
+      setError(
+        publishedEvidence
+          ? 'Model estimate unavailable. The external evidence result is shown below.'
+          : (err.response?.data?.detail || 'Analysis failed. Please try again.')
+      );
     } finally {
       setLoading(false);
     }
@@ -41,6 +58,8 @@ export default function Dashboard() {
   const charCount = text.length;
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const isFake = result?.prediction === 'fake';
+  const displayedFactCheck = result?.fact_check ?? factCheck;
+  const hasPublishedFactCheck = isPublishedFactCheck(displayedFactCheck);
 
   return (
     <div className="page-container">
@@ -97,14 +116,21 @@ export default function Dashboard() {
         )}
 
         {/* Results */}
-        {result && (
+        {(result || displayedFactCheck) && (
           <div className="space-y-6 animate-slide-up">
+            {hasPublishedFactCheck && <FactCheckEvidence result={displayedFactCheck} />}
+
             {/* Verdict Banner */}
-            <div
+            {result && <div
               className={`glass-card flex items-center gap-6 border-l-4 ${isFake ? 'border-l-red-500' : 'border-l-emerald-500'
                 }`}
             >
               <div className="flex-1">
+                {hasPublishedFactCheck && (
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    Secondary model estimate
+                  </p>
+                )}
                 <div className="flex items-center gap-3 mb-2">
                   <span className={`text-2xl font-bold ${isFake ? 'text-red-400' : 'text-emerald-400'}`}>
                     {result.prediction.toUpperCase()}
@@ -121,20 +147,20 @@ export default function Dashboard() {
                 </p>
               </div>
               <CredibilityGauge score={result.credibility_score} size={120} />
-            </div>
+            </div>}
 
-            {result.fact_check && <FactCheckEvidence result={result.fact_check} />}
+            {!hasPublishedFactCheck && displayedFactCheck && <FactCheckEvidence result={displayedFactCheck} />}
 
             {/* Model Comparison */}
-            <div>
+            {result && <div>
               <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
                 Model Used
               </h3>
               <ModelComparison modelScores={result.model_scores} />
-            </div>
+            </div>}
 
             {/* Explainability */}
-            {result.explainability && (
+            {result?.explainability && (
               <div className="glass-card">
                 <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4">
                   Why This Prediction?
@@ -147,13 +173,13 @@ export default function Dashboard() {
             )}
 
             {/* Metadata */}
-            <div className="flex items-center gap-4 text-xs text-slate-500 px-1">
+            {result && <div className="flex items-center gap-4 text-xs text-slate-500 px-1">
               <span>Model: {result.model_version}</span>
               <span>·</span>
               <span>ID: {result.id?.slice(0, 8)}</span>
               <span>·</span>
               <span>{new Date(result.created_at).toLocaleString()}</span>
-            </div>
+            </div>}
           </div>
         )}
       </div>

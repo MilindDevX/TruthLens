@@ -1,3 +1,11 @@
+export function isPublishedFactCheck(result = {}) {
+  return result.status === 'matched';
+}
+
+export function shouldRunModelEstimate(result = {}) {
+  return !isPublishedFactCheck(result);
+}
+
 export function factCheckPresentation(result = {}) {
   if (result.status === 'matched') {
     return {

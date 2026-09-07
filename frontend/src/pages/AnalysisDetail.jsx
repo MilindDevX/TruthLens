@@ -86,7 +86,7 @@ export default function AnalysisDetail() {
                 )}
               </div>
               <p className="text-xs text-slate-500 mt-2">
-                This is an AI-generated estimate. It does not replace professional fact-checking.
+                This is a model estimate. It does not replace professional fact-checking.
               </p>
             </div>
             <CredibilityGauge score={result.credibility_score} size={140} />
@@ -105,7 +105,7 @@ export default function AnalysisDetail() {
           {/* Model Breakdown */}
           <div>
             <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">
-              Model Breakdown
+              Model Used
             </h3>
             <ModelComparison modelScores={result.model_scores} />
           </div>

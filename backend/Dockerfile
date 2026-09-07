@@ -38,6 +38,10 @@ RUN groupadd -r truthlens && useradd -r -g truthlens -d /app -s /sbin/nologin tr
 # Copy installed Python packages from builder
 COPY --from=builder /install /usr/local
 
+# Keep inference preprocessing available without a runtime NLTK download.
+ENV NLTK_DATA=/usr/local/share/nltk_data
+RUN python -m nltk.downloader -d "$NLTK_DATA" punkt_tab stopwords wordnet
+
 # Copy application code
 COPY . .
 

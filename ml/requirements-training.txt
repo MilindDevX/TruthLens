@@ -1,0 +1,28 @@
+# TruthLens ML Training Dependencies
+# Install with: pip install -r ml/requirements-training.txt
+# NOTE: Keep separate from backend/requirements.txt (backend doesn't need training deps)
+
+# Core ML
+scikit-learn==1.5.2
+joblib==1.4.2
+numpy==1.26.4
+pandas==2.2.3
+
+# Hyperparameter tuning
+optuna==3.6.1
+
+# NLP
+nltk==3.9.1
+vaderSentiment==3.3.2
+
+# Dataset loading (avoids manual CSV downloads)
+datasets==2.20.0
+huggingface_hub==0.24.6
+
+# Upload trained models to HF Hub
+huggingface_hub[cli]==0.24.6
+
+# Utilities
+tqdm==4.66.4
+matplotlib==3.9.1
+seaborn==0.13.2

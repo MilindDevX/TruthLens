@@ -12,6 +12,7 @@ import os
 import json
 import logging
 import joblib
+import sklearn
 from typing import Optional
 
 from app.config import settings
@@ -19,6 +20,23 @@ from app.ml.text_inference import TextInferenceService
 from app.ml.drift_monitor import DriftMonitor
 
 logger = logging.getLogger("truthlens.model_loader")
+INVALID_TEXT_MODEL_VERSIONS = {"v1.0.0", "v1.1.0", "v1.2.0"}
+EXPECTED_TRAINING_LABEL_MAPPING = {"0": "real", "1": "fake"}
+MIN_HELD_OUT_LIAR_F1 = 0.75
+
+
+def validate_text_model_version(version: str) -> None:
+    if version in INVALID_TEXT_MODEL_VERSIONS:
+        raise ValueError(f"{version} is invalid because its labels were reversed.")
+
+
+def validate_text_model_metadata(metadata: dict) -> None:
+    if metadata.get("training_label_mapping") != EXPECTED_TRAINING_LABEL_MAPPING:
+        raise ValueError("Model metadata has an unexpected training label mapping.")
+    if metadata.get("ood_validation", {}).get("f1", 0) < MIN_HELD_OUT_LIAR_F1:
+        raise ValueError("Model metadata fails the held-out LIAR evaluation gate.")
+    if metadata.get("sklearn_version") != sklearn.__version__:
+        raise ValueError("Model metadata has an incompatible scikit-learn version.")
 
 
 def get_model_path(model_type: str, version: Optional[str] = None) -> str:
@@ -142,14 +160,16 @@ def _build_inference_service(version: str) -> TextInferenceService:
     - Loads advanced (DistilBERT) — heavier, graceful fallback if missing
     - Loads metadata for version info
     """
+    validate_text_model_version(version)
+    metadata = load_model_metadata("text", version)
+    validate_text_model_metadata(metadata)
     baseline_pipeline = _load_baseline(version)
     advanced_model, advanced_tokenizer = _load_advanced(version)
-    metadata = load_model_metadata("text", version)
 
     if baseline_pipeline is None and advanced_model is None:
         logger.warning(
             f"No text models found for version {version}. "
-            "Running in placeholder mode — predictions will be empty."
+            "No text model loaded; analysis requests will return unavailable."
         )
 
     return TextInferenceService(

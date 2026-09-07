@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { factCheckPresentation } from './factCheckPresentation.js';
+import { isPublishedFactCheck } from './factCheckPresentation.js';
+import { shouldRunModelEstimate } from './factCheckPresentation.js';
 
 
 test('describes a matched published review without treating it as the model verdict', () => {
@@ -21,6 +23,16 @@ test('describes a matched published review without treating it as the model verd
       url: 'https://example.com/review',
     },
   );
+});
+
+test('identifies a published fact-check as primary evidence', () => {
+  assert.equal(isPublishedFactCheck({ status: 'matched' }), true);
+  assert.equal(isPublishedFactCheck({ status: 'not_found' }), false);
+});
+
+test('skips the secondary model estimate when published evidence matches', () => {
+  assert.equal(shouldRunModelEstimate({ status: 'matched' }), false);
+  assert.equal(shouldRunModelEstimate({ status: 'not_found' }), true);
 });
 
 

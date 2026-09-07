@@ -18,6 +18,8 @@ import joblib
 import logging
 import numpy as np
 import optuna
+import pandas as pd
+import sklearn
 from datetime import datetime, timezone
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -32,12 +34,18 @@ from ml.training.text.features import extract_features_batch, FEATURE_COLUMNS
 from ml.training.utils.data_loader import load_isot_dataset, load_liar_dataset, split_dataset
 from ml.training.utils.metrics import compute_all_metrics, log_metrics_summary, save_metrics
 from ml.training.utils.logger import setup_training_logger
+from ml.training.utils.model_versions import validate_release_metadata, validate_text_model_version
 
 logger = setup_training_logger("truthlens.training.text_baseline", log_dir="logs")
 
 # Paths
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 MODELS_DIR = os.path.join(PROJECT_ROOT, "models", "text")
+
+
+def training_runtime_metadata() -> dict[str, str]:
+    """Record the runtime that serialized the scikit-learn pipeline."""
+    return {"sklearn_version": sklearn.__version__}
 
 
 def create_objective(X_train, y_train, cv):
@@ -78,7 +86,7 @@ def create_objective(X_train, y_train, cv):
 
 def train_baseline(
     n_optuna_trials: int = 30,
-    version: str = "v1.0.0",
+    version: str = "",
 ):
     """
     Full baseline training pipeline.
@@ -95,13 +103,22 @@ def train_baseline(
     9. Compute fairness metrics
     10. Save model + metadata
     """
+    validate_text_model_version(version)
     logger.info("=" * 60)
     logger.info("BASELINE MODEL: TF-IDF + Logistic Regression")
     logger.info("=" * 60)
 
-    # Step 1: Load dataset
-    logger.info("Step 1: Loading ISOT dataset...")
-    df = load_isot_dataset()
+    # Step 1: Load training data while keeping LIAR test data unseen.
+    logger.info("Step 1: Loading ISOT and LIAR training datasets...")
+    isot_df = load_isot_dataset()
+    liar_train_df = load_liar_dataset(splits=("train.tsv", "valid.tsv"))
+    liar_test_df = load_liar_dataset(splits=("test.tsv",))
+    df = pd.concat([isot_df, liar_train_df], ignore_index=True, sort=False)
+    dataset_provenance = {
+        "isot": isot_df.attrs["dataset_provenance"],
+        "liar_training_splits": ["train.tsv", "valid.tsv"],
+        "liar_held_out_split": "test.tsv",
+    }
 
     # Step 2: Preprocess
     logger.info("Step 2: Preprocessing for baseline...")
@@ -173,29 +190,20 @@ def train_baseline(
     )
     log_metrics_summary(test_metrics, "TF-IDF + Logistic Regression (Test)")
 
-    # Step 8: OOD validation on LIAR
-    logger.info("Step 8: Out-of-distribution validation on LIAR dataset...")
-    try:
-        liar_df = load_liar_dataset()
-        liar_df = preprocess_dataset(liar_df, text_col="full_text", method="baseline")
-        X_liar = liar_df["processed_text"].values
-        y_liar = liar_df["label"].values
-
-        y_liar_pred = final_pipeline.predict(X_liar)
-        y_liar_prob = final_pipeline.predict_proba(X_liar)[:, 1]
-
-        liar_metrics = compute_all_metrics(y_liar, y_liar_pred, y_liar_prob, labels=["real", "fake"])
-        log_metrics_summary(liar_metrics, "TF-IDF + LR (LIAR OOD Validation)")
-
-        test_metrics["ood_liar"] = {
-            "accuracy": liar_metrics["accuracy"],
-            "f1": liar_metrics["f1"],
-            "recall": liar_metrics["recall"],
-            "roc_auc": liar_metrics.get("roc_auc"),
-        }
-    except FileNotFoundError as e:
-        logger.warning(f"LIAR dataset not available for OOD validation: {e}")
-        test_metrics["ood_liar"] = None
+    # Step 8: Evaluate on LIAR's never-seen test split.
+    logger.info("Step 8: Evaluating on held-out LIAR test split...")
+    liar_test_df = preprocess_dataset(liar_test_df, text_col="full_text", method="baseline")
+    y_liar = liar_test_df["label"].values
+    y_liar_pred = final_pipeline.predict(liar_test_df["processed_text"].values)
+    y_liar_prob = final_pipeline.predict_proba(liar_test_df["processed_text"].values)[:, 1]
+    liar_metrics = compute_all_metrics(y_liar, y_liar_pred, y_liar_prob, labels=["real", "fake"])
+    log_metrics_summary(liar_metrics, "TF-IDF + LR (held-out LIAR test)")
+    test_metrics["ood_liar"] = {
+        "accuracy": liar_metrics["accuracy"],
+        "f1": liar_metrics["f1"],
+        "recall": liar_metrics["recall"],
+        "roc_auc": liar_metrics.get("roc_auc"),
+    }
 
     # Step 9: Save model + metadata
     logger.info(f"Step 9: Saving model version {version}...")
@@ -216,7 +224,9 @@ def train_baseline(
         "model_type": "baseline",
         "architecture": "TF-IDF + Logistic Regression",
         "trained_at": datetime.now(timezone.utc).isoformat(),
-        "dataset": "ISOT Fake News",
+        "dataset": "ISOT Fake News + LIAR train/valid",
+        "dataset_provenance": dataset_provenance,
+        "training_label_mapping": {"0": "real", "1": "fake"},
         "dataset_size": len(df),
         "train_size": len(X_train_full),
         "test_size": len(X_test),
@@ -231,7 +241,9 @@ def train_baseline(
             "roc_auc": test_metrics.get("roc_auc"),
         },
         "ood_validation": test_metrics.get("ood_liar"),
+        **training_runtime_metadata(),
     }
+    validate_release_metadata(metadata)
 
     metadata_path = os.path.join(model_dir, "metadata.json")
     with open(metadata_path, "w") as f:

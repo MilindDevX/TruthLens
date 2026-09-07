@@ -6,6 +6,7 @@ Handles ISOT and LIAR datasets with group-based stratified splitting.
 import os
 import hashlib
 import logging
+import json
 import pandas as pd
 import numpy as np
 from typing import Optional
@@ -15,6 +16,25 @@ logger = logging.getLogger("truthlens.ml.data_loader")
 
 # Path to local data directory
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
+EXPECTED_SOURCE_LABEL_MAPPING = {"0": "fake", "1": "real"}
+EXPECTED_TRAINING_LABEL_MAPPING = {"0": "real", "1": "fake"}
+
+
+def _require_isot_provenance(data_path: str) -> dict:
+    manifest_path = os.path.join(data_path, "dataset_provenance.json")
+    try:
+        with open(manifest_path) as file:
+            manifest = json.load(file)
+    except FileNotFoundError as error:
+        raise ValueError("dataset_provenance.json is required for ISOT training data.") from error
+
+    if (
+        manifest.get("source_label_mapping") != EXPECTED_SOURCE_LABEL_MAPPING
+        or manifest.get("training_label_mapping") != EXPECTED_TRAINING_LABEL_MAPPING
+    ):
+        raise ValueError("ISOT dataset provenance has an unexpected label mapping.")
+
+    return manifest
 
 
 def load_isot_dataset(data_dir: Optional[str] = None) -> pd.DataFrame:
@@ -29,6 +49,7 @@ def load_isot_dataset(data_dir: Optional[str] = None) -> pd.DataFrame:
     where label: 0 = real, 1 = fake
     """
     data_path = data_dir or os.path.join(DATA_DIR, "isot")
+    provenance = _require_isot_provenance(data_path)
 
     true_path = os.path.join(data_path, "True.csv")
     fake_path = os.path.join(data_path, "Fake.csv")
@@ -72,10 +93,15 @@ def load_isot_dataset(data_dir: Optional[str] = None) -> pd.DataFrame:
         f"Real: {(df['label'] == 0).sum()}, Fake: {(df['label'] == 1).sum()}"
     )
 
-    return df[["full_text", "title", "text", "label", "source", "content_hash"]]
+    result = df[["full_text", "title", "text", "label", "source", "content_hash"]].copy()
+    result.attrs["dataset_provenance"] = provenance
+    return result
 
 
-def load_liar_dataset(data_dir: Optional[str] = None) -> pd.DataFrame:
+def load_liar_dataset(
+    data_dir: Optional[str] = None,
+    splits: tuple[str, ...] = ("train.tsv", "valid.tsv", "test.tsv"),
+) -> pd.DataFrame:
     """
     Load the LIAR dataset for out-of-distribution validation.
 
@@ -96,7 +122,7 @@ def load_liar_dataset(data_dir: Optional[str] = None) -> pd.DataFrame:
     ]
 
     dfs = []
-    for split in ["train.tsv", "valid.tsv", "test.tsv"]:
+    for split in splits:
         filepath = os.path.join(data_path, split)
         if os.path.exists(filepath):
             df = pd.read_csv(filepath, sep="\t", header=None, names=columns)

@@ -31,6 +31,7 @@ from ml.training.text.features import extract_features_batch, FEATURE_COLUMNS
 from ml.training.utils.data_loader import load_isot_dataset, load_liar_dataset, split_dataset
 from ml.training.utils.metrics import compute_all_metrics, log_metrics_summary, save_metrics
 from ml.training.utils.logger import setup_training_logger, log_epoch_metrics
+from ml.training.utils.model_versions import validate_text_model_version
 
 logger = setup_training_logger("truthlens.training.text_advanced", log_dir="logs")
 
@@ -77,7 +78,7 @@ class FocalLoss(nn.Module):
 
 def train_advanced(
     n_optuna_trials: int = 10,
-    version: str = "v1.0.0",
+    version: str = "",
     max_epochs: int = 5,
     patience: int = 2,
 ):
@@ -88,6 +89,7 @@ def train_advanced(
     Optimizes with Optuna on validation F1.
     Implements early stopping.
     """
+    validate_text_model_version(version)
     from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
 
     logger.info("=" * 60)
