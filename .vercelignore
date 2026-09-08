@@ -1,0 +1,10 @@
+data/
+logs/
+ml/data/
+ml/logs/
+models/
+render_logs.txt
+backend/.venv/
+ml/.venv/
+frontend/node_modules/
+frontend/dist/
