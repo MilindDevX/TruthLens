@@ -11,3 +11,7 @@ Do not publish an artifact until every item is true.
 - [ ] `/health` is confirmed healthy by both Render logs and an independent public request.
 
 If any item fails, retain the artifact for investigation only. Do not upload or activate it.
+
+## Rejected experiments
+
+- `v1.3.0` (GitHub Actions run `34138903909`, 2026-09-07): rejected. Held-out LIAR F1 was `0.5648`, below the required `0.75`; no artifact was uploaded or activated. Do not rerun this ISOT-plus-LIAR configuration unchanged.
