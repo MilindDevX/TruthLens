@@ -18,3 +18,4 @@ coverage/
 Agent_Outputs/
 .neon
 backend/.local-secrets/
+docs/superpowers/
